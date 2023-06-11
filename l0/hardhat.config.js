@@ -8,6 +8,7 @@ dotenv.config();
 
 const {
   POLYGON_MAINNET_URL,
+  BSC_MAINNET_URL,
   PRIVATE_KEY
 } = process.env;
 
@@ -20,5 +21,11 @@ module.exports = {
         gasPrice: 0,
         blockConfirmations: 6,
     },
+    bsc: {
+      url: BSC_MAINNET_URL,
+      accounts: [PRIVATE_KEY],
+      gasPrice: 0,
+      blockConfirmations: 6,
+  },
   }
 };

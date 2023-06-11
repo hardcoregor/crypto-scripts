@@ -1,9 +1,16 @@
 const dotenv = require("dotenv");
+const { execSync } = require('child_process');
+
 const ERC20TOKEN = require("../contracts/ABI/ERC20TOKEN.json");
 const stargatePolyABI = require("../contracts/ABI/Poly/StargateRouter.json");
 const polyEndpointABI = require("../contracts/ABI/Poly/EndpointPoly.json");
+
+const { checkBalance } = require('../scripts/utils');
+
 const usdtPolyAddr = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
 dotenv.config();
+
+let balanceBefore;
 
 const { task } = require("hardhat/config");
 
@@ -30,18 +37,17 @@ task("bridgeUSDC-poly-bnb", "from polygon usdt to bsc usdt")
       dstNativeAddr: ethers.utils.arrayify("0x0000000000000000000000000000000000000001")
     };
 
-    const balance = await polyUSDT.balanceOf(deployerWallet.address);
-
+    balanceBefore = await polyUSDT.balanceOf(deployerWallet.address);
     const minPercentage = 0.9; // 90%
     const maxPercentage = 1.0; // 100%
-    const minRange = balance.toNumber() * minPercentage;
-    const maxRange = balance.toNumber() * maxPercentage;
+    const minRange = balanceBefore.toNumber() * minPercentage;
+    const maxRange = balanceBefore.toNumber() * maxPercentage;
     const randomBalance = Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
 
-    await checkBalance();
+    console.log(balanceBefore.toString(), 'poly')
 
-    // const swapToAddress = ethers.utils.arrayify(deployerWallet.address);
-    // const payload = ethers.utils.arrayify("0x");
+    const swapToAddress = ethers.utils.arrayify(deployerWallet.address);
+    const payload = ethers.utils.arrayify("0x");
 
     // const argsForSwap = [toBnbId,srcPoolPolyBnb,dstPoolPolyBnb,deployerWallet.address,Math.floor(randomBalance),Math.floor(randomBalance * 0.9),_lzTxParams,swapToAddress,payload];
 
@@ -50,27 +56,16 @@ task("bridgeUSDC-poly-bnb", "from polygon usdt to bsc usdt")
     // console.log('swap start');
     // const swap = await contractRouter.swap(...argsForSwap, {gasPrice: feeData.gasPrice, value: fees.nativeFee});
     // console.log('swap done');
-    // return;
+    
+    execSync('npx hardhat run ./scripts/checkingBalance.js --network bsc', { stdio: 'inherit' });
+
+    return;
   });
 
-const checkBalance = async () => {
-    const provider = new ethers.providers.JsonRpcProvider(process.env.POLYGON_MAINNET_URL);
-    const deployerWallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-    const polyUSDT = await ethers.getContractAt(ERC20TOKEN, usdtPolyAddr);
-    let balance = await polyUSDT.balanceOf(deployerWallet.address);
-
-    while (balance < (balance * 0.8)) {
-      console.log("Balance is 0. Waiting for 1 minute...");
-      await sleep(1000);
-      balance = await polyUSDT.balanceOf(deployerWallet.address);
-    }
-
-    console.log("Balance is not 0:", balance);
-};
-
-const sleep = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-};
+task("check-usdt-bnb", "checking usdt balance on bsc")
+  .setAction(async (taskArgs, { ethers, network }) => {
+    await checkBalance(balanceBefore);
+  });
 
 task("bridgeUSDC-bnb-poly", "from bsc usdt to polygon usdt")
   .setAction(async (taskArgs, { ethers, network }) => {
